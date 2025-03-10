@@ -1,102 +1,60 @@
-#!/usr/bin/env python3
 import json
 import subprocess
-import datetime
-import signal
-import sys
-from pprint import pprint
+import time
 
-def signal_handler(sig, frame):
-    print('\nStopping monitor...')
-    sys.exit(0)
+class WS2000Monitor:
+    def __init__(self):
+        # Initialize any necessary variables or settings
+        self.device = 'hw:1,0,0'  # Adjust this to your actual device
 
-def monitor_weather():
-    # Command to run rtl_433 with detailed output
-    cmd = [
-        './rtl_433',
-        '-f', '915M',
-        '-M', 'level',
-        '-M', 'report_meta',
-        '-Y', 'autolevel',
-        '-F', 'json:-'  # Output JSON to stdout
-    ]
-    
-    # Start rtl_433 process
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True
-    )
-    
-    print("Monitoring WS-2000 weather station...")
-    print("Press Ctrl+C to stop")
-    
-    try:
-        while True:
-            output = process.stdout.readline()
-            if output:
-                try:
-                    data = json.loads(output)
-                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                    
-                    # Print raw data for debugging
-                    print(f"\n[{timestamp}] Raw Data:")
-                    pprint(data)
-                    
-                    # Print formatted data
-                    print("\nFormatted Data:")
-                    
-                    # Temperature
-                    if 'temperature_C' in data:
-                        print(f"Temperature: {data['temperature_C']}°C")
-                    
-                    # Humidity
-                    if 'humidity' in data:
-                        print(f"Humidity: {data['humidity']}%")
-                    
-                    # Wind measurements
-                    if 'wind_speed_kph' in data:
-                        print(f"Wind Speed: {data['wind_speed_kph']} kph")
-                    if 'wind_avg_km_h' in data:
-                        print(f"Average Wind Speed: {data['wind_avg_km_h']} km/h")
-                    if 'wind_max_km_h' in data:
-                        print(f"Max Wind Speed: {data['wind_max_km_h']} km/h")
-                    if 'wind_dir_deg' in data:
-                        print(f"Wind Direction: {data['wind_dir_deg']}°")
-                    if 'wind_intensity' in data:
-                        print(f"Wind Intensity: {data['wind_intensity']}")
-                    
-                    # Rain measurements
-                    if 'rain_mm' in data:
-                        print(f"Rain: {data['rain_mm']} mm")
-                    if 'rain_rate_mm_h' in data:
-                        print(f"Rain Rate: {data['rain_rate_mm_h']} mm/h")
-                    
-                    # Signal information
-                    if 'signal_strength' in data:
-                        print(f"Signal Strength: {data['signal_strength']} dB")
-                    if 'signal_quality' in data:
-                        print(f"Signal Quality: {data['signal_quality']}")
-                    
-                    # Battery status
-                    if 'battery_ok' in data:
-                        print(f"Battery OK: {data['battery_ok']}")
-                    
-                    print("-" * 50)  # Separator line
-                    
-                except json.JSONDecodeError:
-                    continue
-                except KeyError as e:
-                    print(f"Missing data field: {e}")
-                    continue
-                
-    except KeyboardInterrupt:
-        process.terminate()
-        print("\nMonitoring stopped")
+    def get_latest_reading(self):
+        """Fetch the latest wind reading from the WS2000."""
+        try:
+            # Command to run rtl_433 with detailed output
+            cmd = [
+                './rtl_433',
+                '-f', '915M',
+                '-M', 'level',
+                '-M', 'report_meta',
+                '-Y', 'autolevel',
+                '-F', 'json:-'  # Output JSON to stdout
+            ]
+            
+            # Start rtl_433 process
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            
+            print("Monitoring WS-2000 weather station...")
+            print("Press Ctrl+C to stop")
+            
+            while True:
+                line = process.stdout.readline()
+                if line:
+                    try:
+                        data = json.loads(line)
+                        # Check if the model is Fineoffset-WH24
+                        if data.get('model') == "Fineoffset-WH24":
+                            wind_speed_mps = data.get('wind_avg_m_s', 0)  # Wind speed in m/s
+                            wind_speed_mph = wind_speed_mps * 2.23694  # Convert to MPH
+                            wind_direction = data.get('wind_dir_deg', 0)  # Default to 0 if not found
+                            print(f"Wind Speed: {wind_speed_mph:.2f} MPH, Wind Direction: {wind_direction}°")
+                    except json.JSONDecodeError:
+                        continue  # Ignore lines that cannot be parsed
 
+        except Exception as e:
+            print(f"Error fetching wind data: {e}")
+            return {'wind_speed': 0.0, 'wind_direction': 0.0}  # Return default values on error
+
+    def cleanup(self):
+        """Clean up any resources if necessary."""
+        pass  # Implement cleanup if needed 
+
+# Example usage
 if __name__ == "__main__":
-    # Setup signal handler for Ctrl+C
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    monitor_weather()
+    monitor = WS2000Monitor()
+    monitor.get_latest_reading()
+
