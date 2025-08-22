@@ -38,10 +38,9 @@ class WS2000Monitor:
                         data = json.loads(line)
                         # Check if the model is Fineoffset-WH24
                         if data.get('model') == "Fineoffset-WH24":
-                            wind_speed_mps = data.get('wind_avg_m_s', 0)  # Wind speed in m/s
-                            wind_speed_mph = wind_speed_mps * 2.23694  # Convert to MPH
+                            wind_speed = data.get('wind_avg_m_s', 0) * 2.23694  # Convert to MPH
                             wind_direction = data.get('wind_dir_deg', 0)  # Default to 0 if not found
-                            print(f"Wind Speed: {wind_speed_mph:.2f} MPH, Wind Direction: {wind_direction}°")
+                            print(f"Wind Speed: {wind_speed:.2f} MPH, Wind Direction: {wind_direction}°")
                     except json.JSONDecodeError:
                         continue  # Ignore lines that cannot be parsed
 
@@ -57,4 +56,3 @@ class WS2000Monitor:
 if __name__ == "__main__":
     monitor = WS2000Monitor()
     monitor.get_latest_reading()
-
