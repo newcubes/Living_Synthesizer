@@ -1,10 +1,16 @@
 import numpy as np
 import time
 import subprocess
-from monitor_ws2000 import WS2000Monitor
-from wind_smoother import WindSmoother
+from src.monitor import WS2000Monitor
+from src.wind_smoother import WindSmoother
 
-class WindControl:
+class SignalConverter:
+    """
+    Converts environmental sensor data to MIDI control signals.
+    
+    Takes weather station data (wind speed, direction, temperature, humidity)
+    and converts it to MIDI CC messages for real-time synthesizer control.
+    """
     def __init__(self):
         # Initialize WS2000 SDR monitor
         self.ws2000 = WS2000Monitor()  # This handles the SDR reception
@@ -74,5 +80,5 @@ class WindControl:
             self.ws2000.cleanup()
 
 if __name__ == "__main__":
-    controller = WindControl()
-    controller.run()
+    converter = SignalConverter()
+    converter.run()

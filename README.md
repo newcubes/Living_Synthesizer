@@ -6,6 +6,28 @@ A weather-controlled synthesizer system that uses real-time wind data to modulat
 
 This project connects a WS2000 weather station to a synthesizer (Digitone) using an RTL-SDR device. Wind speed and direction data are used to control LFO parameters in real-time, creating a "living" synthesizer that responds to environmental conditions.
 
+## Project Structure
+
+```
+Living_Synthesizer/
+├── src/                    # Core monitoring modules
+│   ├── monitor.py         # Weather station monitoring
+│   └── wind_smoother.py   # Wind data smoothing
+├── midi/                   # MIDI control modules
+│   ├── sdr_to_midi.py     # SDR to MIDI conversion
+│   ├── signal_conversion.py # Environmental to MIDI conversion
+│   └── smooth_monitor.py  # Smooth monitoring with MIDI
+├── examples/               # Example usage scripts
+│   └── main.py            # Main coordinator example
+├── tests/                  # Test and debugging scripts
+│   ├── test_hardware.py   # Hardware connectivity tests
+│   ├── fix_rtl_sdr.py     # RTL-SDR troubleshooting
+│   └── README.md          # Test documentation
+├── setup.py               # Package installation
+├── requirements.txt       # Python dependencies
+└── README.md             # This file
+```
+
 ## Components
 
 - **Weather Station**: Fineoffset-WH24 transmitting on 915MHz
@@ -13,58 +35,80 @@ This project connects a WS2000 weather station to a synthesizer (Digitone) using
 - **Raspberry Pi**: Processes weather data and sends MIDI commands
 - **Synthesizer**: Elektron Digitone (or other MIDI-compatible device)
 
-## Files
+## Quick Start
 
-### Core Monitoring
-- `monitor.py` - Main weather station monitoring script with continuous operation
-- `wind_smoother.py` - Smooths wind data for gradual MIDI transitions
-- `sdr_to_midi.py` - Converts SDR data to MIDI control signals
+### Installation
 
-### MIDI Control
-- `wind_control.py` - Wind-based MIDI control system
-- `smooth_monitor.py` - Smooth weather monitoring with MIDI output
-
-### Coordination
-- `main.py` - Main coordinator script that runs the entire system
-
-## Setup
-
-1. **Hardware Setup**
-   - Connect RTL-SDR to Raspberry Pi
-   - Ensure weather station is transmitting on 915MHz
-   - Connect MIDI device
-
-2. **Software Setup**
-   - Install RTL-SDR tools: `sudo apt install rtl-sdr librtlsdr-dev`
-   - Blacklist DVB driver: `echo 'blacklist dvb_usb_rtl28xxu' | sudo tee -a /etc/modprobe.d/blacklist-rtl.conf`
-   - Reboot: `sudo reboot`
-
-3. **Testing**
-   - Run hardware tests: `python3 tests/test_hardware.py`
-   - Test monitoring: `python3 monitor.py`
-
-## Usage
-
-### Basic Monitoring
 ```bash
-python3 monitor.py
+# Clone the repository
+git clone https://github.com/newcubes/Living_Synthesizer.git
+cd Living_Synthesizer
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install RTL-SDR tools (on Raspberry Pi)
+sudo apt update
+sudo apt install rtl-sdr librtlsdr-dev
+
+# Blacklist DVB driver
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee -a /etc/modprobe.d/blacklist-rtl.conf
+sudo reboot
 ```
 
-### Full System
-```bash
-python3 main.py
-```
+### Basic Usage
 
-### Testing
 ```bash
-# Test hardware
+# Test hardware setup
 python3 tests/test_hardware.py
 
-# Test RTL-SDR
-python3 tests/test_rtl_simple.py
+# Start weather monitoring
+python3 src/monitor.py
 
-# Fix issues
+# Run full system example
+python3 examples/main.py
+```
+
+### Development
+
+```bash
+# Install in development mode
+pip install -e .
+
+# Run tests
+python3 tests/test_hardware.py
 python3 tests/fix_rtl_sdr.py
+```
+
+## API Reference
+
+### Core Monitoring
+
+```python
+from src import WS2000Monitor, WindSmoother
+
+# Create monitor
+monitor = WS2000Monitor()
+
+# Get continuous weather data
+for reading in monitor.start_monitoring():
+    wind_speed = reading['wind_speed']      # Raw wind speed (MPH)
+    smooth_speed = reading['smooth_speed']  # Smoothed (0-1 range)
+    wind_direction = reading['wind_direction']  # Degrees
+    temperature = reading['temperature']    # Celsius
+    humidity = reading['humidity']          # Percentage
+```
+
+### MIDI Control
+
+```python
+from midi import SDRModulator, SignalConverter
+
+# Create signal converter
+converter = SignalConverter()
+
+# Convert and send environmental data to synthesizer
+converter.run()
 ```
 
 ## Troubleshooting
@@ -72,9 +116,9 @@ python3 tests/fix_rtl_sdr.py
 See `tests/README.md` for detailed troubleshooting guides.
 
 Common issues:
-- RTL-SDR not detected: Check USB connection and DVB driver blacklist
-- No weather data: Verify weather station is transmitting on 915MHz
-- MIDI not working: Check MIDI device connections and permissions
+- **RTL-SDR not detected**: Check USB connection and DVB driver blacklist
+- **No weather data**: Verify weather station is transmitting on 915MHz
+- **MIDI not working**: Check MIDI device connections and permissions
 
 ## Data Flow
 
@@ -94,3 +138,15 @@ The system captures:
 - **Humidity**: Percentage
 
 Wind speed is normalized to 0-1 range for MIDI control.
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
