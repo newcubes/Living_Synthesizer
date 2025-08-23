@@ -108,13 +108,17 @@ monitor.set_custom_smoothing(buffer_size=5, response_speed=0.8)
 ### MIDI Control
 
 ```python
-from midi import SDRModulator, SignalConverter
+from midi import SDRModulator, SignalConverter, DigitoneControl
 
 # Create signal converter
 converter = SignalConverter()
 
 # Convert and send environmental data to synthesizer
 converter.run()
+
+# Or use dedicated Digitone control
+digitone = DigitoneControl(midi_port='hw:1,0,0')
+digitone.control_lfo(1, wind_speed_mph=12.5, wind_direction_deg=90, temperature_c=25)
 ```
 
 ## Troubleshooting
@@ -181,6 +185,38 @@ monitor.set_custom_smoothing(
     response_speed=0.6,      # How quickly to respond (0.1-1.0)
     smoothing_type='exponential'  # 'linear', 'exponential', 'gaussian'
 )
+```
+
+## Digitone Integration
+
+The system includes dedicated Digitone MIDI control for weather-driven synthesis:
+
+### **Wind Speed → LFO Rate Mapping**
+- **0 MPH wind** → **Slowest LFO rate** (CC 28/30 = 0)
+- **12.5 MPH wind** → **Medium LFO rate** (CC 28/30 = 64)
+- **25+ MPH wind** → **Fastest LFO rate** (CC 28/30 = 127)
+
+### **Wind Direction → LFO Waveform**
+- **North (0°)** → **Triangle wave**
+- **East (90°)** → **Square wave**
+- **South (180°)** → **Exponential wave**
+- **West (270°)** → **Random wave**
+
+### **Temperature → LFO Depth**
+- **0°C** → **No modulation** (CC 29/31 = 0)
+- **20°C** → **Medium modulation** (CC 29/31 = 32)
+- **40°C** → **Maximum modulation** (CC 29/31 = 63)
+
+### **Usage**
+```bash
+# Run complete weather-to-Digitone integration
+python3 examples/weather_to_digitone.py
+
+# Test without MIDI output
+python3 examples/weather_to_digitone.py --test
+
+# Use different smoothing profile
+python3 examples/weather_to_digitone.py --smoothing ambient
 ```
 
 ## License
