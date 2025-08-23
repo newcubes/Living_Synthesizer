@@ -5,10 +5,11 @@ import os
 from wind_smoother import WindSmoother
 
 class WS2000Monitor:
-    def __init__(self):
+    def __init__(self, smoothing_profile='balanced'):
         self.process = None
-        # Initialize wind smoother for smooth transitions
-        self.wind_smoother = WindSmoother(buffer_size=10, max_wind_mph=20.0)
+        # Initialize wind smoother with configurable profile
+        self.wind_smoother = WindSmoother()
+        self.wind_smoother.set_smoothing_profile(smoothing_profile)
         self.last_reading = None
 
     def check_device(self):
@@ -146,6 +147,18 @@ class WS2000Monitor:
             }
         return None
 
+    def set_smoothing_profile(self, profile_name):
+        """Change smoothing profile on the fly"""
+        self.wind_smoother.set_smoothing_profile(profile_name)
+    
+    def set_custom_smoothing(self, **kwargs):
+        """Set custom smoothing parameters"""
+        self.wind_smoother.set_custom_parameters(**kwargs)
+    
+    def get_smoothing_info(self):
+        """Get current smoothing parameters"""
+        return self.wind_smoother.get_smoothing_info()
+    
     def cleanup(self):
         """Clean up any resources if necessary."""
         if self.process:

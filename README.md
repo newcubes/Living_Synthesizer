@@ -87,8 +87,10 @@ python3 tests/fix_rtl_sdr.py
 ```python
 from src import WS2000Monitor, WindSmoother
 
-# Create monitor
-monitor = WS2000Monitor()
+# Create monitor with different smoothing profiles
+monitor = WS2000Monitor(smoothing_profile='responsive')  # Fast response
+monitor = WS2000Monitor(smoothing_profile='ambient')     # Very smooth
+monitor = WS2000Monitor(smoothing_profile='balanced')    # Default
 
 # Get continuous weather data
 for reading in monitor.start_monitoring():
@@ -97,6 +99,10 @@ for reading in monitor.start_monitoring():
     wind_direction = reading['wind_direction']  # Degrees
     temperature = reading['temperature']    # Celsius
     humidity = reading['humidity']          # Percentage
+
+# Change smoothing on the fly
+monitor.set_smoothing_profile('ambient')
+monitor.set_custom_smoothing(buffer_size=5, response_speed=0.8)
 ```
 
 ### MIDI Control
@@ -138,6 +144,44 @@ The system captures:
 - **Humidity**: Percentage
 
 Wind speed is normalized to 0-1 range for MIDI control.
+
+## Smoothing Profiles
+
+The system includes configurable smoothing profiles for different musical applications:
+
+### **Responsive Profile** (`smoothing_profile='responsive'`)
+- **Buffer**: 3 readings
+- **Response**: Fast (0.8)
+- **Use case**: Rhythmic LFOs, percussive sounds
+- **Latency**: ~1-2 seconds
+
+### **Balanced Profile** (`smoothing_profile='balanced'`) - Default
+- **Buffer**: 8 readings  
+- **Response**: Medium (0.5)
+- **Use case**: General purpose, most applications
+- **Latency**: ~2-3 seconds
+
+### **Smooth Profile** (`smoothing_profile='smooth'`)
+- **Buffer**: 15 readings
+- **Response**: Slow (0.3)
+- **Use case**: Pad sounds, evolving textures
+- **Latency**: ~3-4 seconds
+
+### **Ambient Profile** (`smoothing_profile='ambient'`)
+- **Buffer**: 20 readings
+- **Response**: Very slow (0.2)
+- **Use case**: Ambient music, atmospheric sounds
+- **Latency**: ~4-5 seconds
+
+### **Custom Parameters**
+```python
+monitor.set_custom_smoothing(
+    buffer_size=5,           # Number of readings to average
+    interpolation_steps=80,  # Smoothness of transitions
+    response_speed=0.6,      # How quickly to respond (0.1-1.0)
+    smoothing_type='exponential'  # 'linear', 'exponential', 'gaussian'
+)
+```
 
 ## License
 
