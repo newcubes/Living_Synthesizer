@@ -16,11 +16,81 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'midi'))
 
 from src.monitor import WS2000Monitor
 from midi.synth_control import SynthControl
+import threading
+import time
+
+class SmoothRampController:
+    """
+    Smooth ramping controller that transitions between values over 8 seconds.
+    Prevents audible jumps when new wind values are received.
+    """
+    
+    def __init__(self, ramp_duration=8.0, update_rate=0.1):
+        self.ramp_duration = ramp_duration  # seconds
+        self.update_rate = update_rate      # seconds between updates
+        self.current_value = 0.0
+        self.target_value = 0.0
+        self.start_value = 0.0
+        self.ramp_start_time = None
+        self.is_ramping = False
+        self.lock = threading.Lock()
+        
+        # Start the ramping thread
+        self.running = True
+        self.ramp_thread = threading.Thread(target=self._ramp_loop, daemon=True)
+        self.ramp_thread.start()
+    
+    def set_target(self, new_target):
+        """Set a new target value and start ramping"""
+        with self.lock:
+            if abs(new_target - self.target_value) > 0.1:  # Only ramp if change is significant
+                self.start_value = self.current_value
+                self.target_value = new_target
+                self.ramp_start_time = time.time()
+                self.is_ramping = True
+                print(f"🎯 New target: {new_target:.1f} MPH (ramping from {self.start_value:.1f})")
+    
+    def get_current_value(self):
+        """Get the current smoothed value"""
+        with self.lock:
+            return self.current_value
+    
+    def _ramp_loop(self):
+        """Main ramping loop that runs in background thread"""
+        while self.running:
+            with self.lock:
+                if self.is_ramping and self.ramp_start_time:
+                    elapsed = time.time() - self.ramp_start_time
+                    progress = min(elapsed / self.ramp_duration, 1.0)
+                    
+                    # Smooth easing function (ease-in-out)
+                    if progress < 0.5:
+                        ease_progress = 2 * progress * progress
+                    else:
+                        ease_progress = 1 - 2 * (1 - progress) * (1 - progress)
+                    
+                    # Interpolate between start and target
+                    self.current_value = self.start_value + (self.target_value - self.start_value) * ease_progress
+                    
+                    # Check if ramp is complete
+                    if progress >= 1.0:
+                        self.current_value = self.target_value
+                        self.is_ramping = False
+                        print(f"✅ Ramp complete: {self.current_value:.1f} MPH")
+            
+            time.sleep(self.update_rate)
+    
+    def stop(self):
+        """Stop the ramping thread"""
+        self.running = False
+        if self.ramp_thread.is_alive():
+            self.ramp_thread.join(timeout=1.0)
 
 class IntensitySignalToSynth:
     """
     Simplified integration that only controls LFO1 Speed with wind speed.
     Wind speed range: 0-10 MPH → LFO rate: 0-127
+    Includes 8-second smooth ramping between values.
     """
     
     def __init__(self, smoothing_profile='balanced', midi_port='hw:1,0,0', max_intensity=10.0):
@@ -29,6 +99,9 @@ class IntensitySignalToSynth:
         
         # Initialize synthesizer controller
         self.synth = SynthControl(midi_port=midi_port, debug=True, max_intensity=max_intensity)
+        
+        # Initialize smooth ramping controller
+        self.ramp_controller = SmoothRampController(ramp_duration=8.0, update_rate=0.1)
         
         # LFO configuration - Only LFO1 Speed controlled by wind
         self.lfo_config = {
@@ -52,6 +125,7 @@ class IntensitySignalToSynth:
         print(f"  Max intensity: {max_intensity} MPH → Full LFO rate")
         print(f"  LFO1 enabled: {self.lfo_config['lfo1']['enabled']} (Speed only)")
         print(f"  LFO2 enabled: {self.lfo_config['lfo2']['enabled']}")
+        print(f"  Smooth ramping: 8-second transitions between wind values")
     
     def setup_lfo_destinations(self):
         """Configure LFO destinations and settings"""
@@ -82,19 +156,26 @@ class IntensitySignalToSynth:
         print(f"    Humidity: {humidity}%")
         print(f"{'='*60}")
         
-        # Control LFO1 Speed only (wind speed → rate, upper half of CC range)
+        # Set new target for smooth ramping
+        self.ramp_controller.set_target(wind_speed)
+        
+        # Get current smoothed value
+        smoothed_wind = self.ramp_controller.get_current_value()
+        
+        # Control LFO1 Speed only (smoothed wind speed → rate, upper half of CC range)
         if self.lfo_config['lfo1']['enabled']:
-            # Map wind speed to upper half of CC range (64-127)
-            wind_normalized = min(wind_speed / self.synth.max_intensity, 1.0)
+            # Map smoothed wind speed to upper half of CC range (64-127)
+            wind_normalized = min(smoothed_wind / self.synth.max_intensity, 1.0)
             lfo_rate = int(64 + (wind_normalized * 63))  # 64-127 range
             self.synth.send_midi_cc(28, lfo_rate)  # LFO1 Speed CC 28 on Channel 2
             
-            print(f"🎛️  LFO1 Speed Control (Upper Half):")
-            print(f"    Wind: {wind_speed:.1f} MPH → LFO Rate: {lfo_rate}/127 (Range: 64-127)")
+            print(f"🎛️  LFO1 Speed Control (Smoothed):")
+            print(f"    Raw Wind: {wind_speed:.1f} MPH → Smoothed: {smoothed_wind:.1f} MPH")
+            print(f"    LFO Rate: {lfo_rate}/127 (Range: 64-127)")
         
         # Print summary of current LFO state
         print(f"\n🎵 LFO SUMMARY:")
-        print(f"    LFO1: Rate={lfo_rate}/127 (Upper Half: 64-127) | Fixed Depth: 32/63")
+        print(f"    LFO1: Rate={lfo_rate}/127 (Smoothed: {smoothed_wind:.1f} MPH) | Fixed Depth: 32/63")
         print(f"    LFO2: Disabled")
     
     def run(self):
@@ -121,6 +202,7 @@ class IntensitySignalToSynth:
         except Exception as e:
             print(f"❌ Error: {e}")
         finally:
+            self.ramp_controller.stop()
             self.monitor.cleanup()
             print("✅ Cleanup complete")
 
