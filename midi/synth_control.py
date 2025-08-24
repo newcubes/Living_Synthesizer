@@ -25,31 +25,31 @@ class SynthControl:
         self.debug = debug
         self.max_intensity = max_intensity  # Maximum wind speed for full LFO intensity
         
-        # Synthesizer LFO CC mappings
+        # Synthesizer LFO CC mappings (Track 2)
         self.LFO_CC_MAPPINGS = {
             'lfo1': {
-                'speed': 28,      # LFO1 Speed MSB
-                'speed_lsb': 60,  # LFO1 Speed LSB
-                'depth': 29,      # LFO1 Depth MSB
-                'depth_lsb': 61,  # LFO1 Depth LSB
-                'waveform': 111,  # LFO1 Waveform
-                'destination': 110, # LFO1 Destination
-                'multiplier': 108,  # LFO1 Multiplier
-                'fade': 109,        # LFO1 Fade
-                'start_phase': 112, # LFO1 Start Phase
-                'trig_mode': 113    # LFO1 Trig Mode
+                'speed': 28,      # Track 2 LFO1 Speed MSB
+                'speed_lsb': 60,  # Track 2 LFO1 Speed LSB
+                'depth': 29,      # Track 2 LFO1 Depth MSB
+                'depth_lsb': 61,  # Track 2 LFO1 Depth LSB
+                'waveform': 111,  # Track 2 LFO1 Waveform
+                'destination': 110, # Track 2 LFO1 Destination
+                'multiplier': 108,  # Track 2 LFO1 Multiplier
+                'fade': 109,        # Track 2 LFO1 Fade
+                'start_phase': 112, # Track 2 LFO1 Start Phase
+                'trig_mode': 113    # Track 2 LFO1 Trig Mode
             },
             'lfo2': {
-                'speed': 30,      # LFO2 Speed MSB
-                'speed_lsb': 62,  # LFO2 Speed LSB
-                'depth': 31,      # LFO2 Depth MSB
-                'depth_lsb': 63,  # LFO2 Depth LSB
-                'waveform': 117,  # LFO2 Waveform
-                'destination': 116, # LFO2 Destination
-                'multiplier': 114,  # LFO2 Multiplier
-                'fade': 115,        # LFO2 Fade
-                'start_phase': 118, # LFO2 Start Phase
-                'trig_mode': 119    # LFO2 Trig Mode
+                'speed': 30,      # Track 2 LFO2 Speed MSB
+                'speed_lsb': 62,  # Track 2 LFO2 Speed LSB
+                'depth': 31,      # Track 2 LFO2 Depth MSB
+                'depth_lsb': 63,  # Track 2 LFO2 Depth LSB
+                'waveform': 117,  # Track 2 LFO2 Waveform
+                'destination': 116, # Track 2 LFO2 Destination
+                'multiplier': 114,  # Track 2 LFO2 Multiplier
+                'fade': 115,        # Track 2 LFO2 Fade
+                'start_phase': 118, # Track 2 LFO2 Start Phase
+                'trig_mode': 119    # Track 2 LFO2 Trig Mode
             }
         }
         
@@ -69,26 +69,29 @@ class SynthControl:
         self.wind_speed_range = (0, self.max_intensity)  # MPH
         self.lfo_rate_range = (0, 127)   # MIDI CC values
         
-        print(f"DigitoneControl initialized on port: {midi_port}")
+        print(f"SynthControl initialized on port: {midi_port}")
+        print(f"Targeting: Track 2 (MIDI Channel 2)")
         print(f"Max intensity: {self.max_intensity} MPH → Full LFO rate (127)")
         print(f"Wind speed range: 0-{self.max_intensity} MPH → LFO rate: 0-127")
         
-    def send_midi_cc(self, cc_number, value):
-        """Send MIDI CC message to Digitone"""
+    def send_midi_cc(self, cc_number, value, channel=2):
+        """Send MIDI CC message to Digitone on specified channel (default: Channel 2 for Track 2)"""
         # Clamp value to 0-127 range
         midi_value = max(0, min(127, int(value)))
         
-        # Format MIDI message (B0 = CC, followed by CC number and value)
-        midi_message = f"B0 {cc_number:02x} {midi_value:02x}"
+        # Format MIDI message (B1 = CC on Channel 2, B0 = Channel 1, etc.)
+        # Channel 1 = B0, Channel 2 = B1, Channel 3 = B2, etc.
+        channel_byte = 0xB0 + (channel - 1)
+        midi_message = f"{channel_byte:02x} {cc_number:02x} {midi_value:02x}"
         
         if self.debug:
-            print(f"📤 MIDI CC: {cc_number} = {midi_value}/127 ({midi_message})")
+            print(f"📤 MIDI CC: {cc_number} = {midi_value}/127 on Channel {channel} ({midi_message})")
         
         try:
             subprocess.run(['amidi', '-p', self.midi_port, '-S', midi_message], 
                          check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to send MIDI CC {cc_number}: {e}")
+            print(f"❌ Failed to send MIDI CC {cc_number} on Channel {channel}: {e}")
         except FileNotFoundError:
             print("❌ Error: 'amidi' command not found. Install alsa-utils package.")
     
