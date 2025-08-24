@@ -1,4 +1,4 @@
-from monitor_ws2000 import WS2000Monitor
+from src.monitor import WS2000Monitor
 
 def test_monitor():
     ws2000 = WS2000Monitor()

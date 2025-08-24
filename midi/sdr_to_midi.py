@@ -3,8 +3,8 @@ import alsaseq
 import alsamidi
 import numpy as np
 import time
-from monitor_ws2000 import WS2000Monitor
-from wind_smoother import WindSmoother
+from src.monitor import WS2000Monitor
+from src.wind_smoother import WindSmoother
 
 class SDRModulator:
     def __init__(self):

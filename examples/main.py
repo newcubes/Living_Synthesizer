@@ -1,7 +1,7 @@
 import time
-from monitor_ws2000 import WS2000Monitor
-from wind_smoother import WindSmoother
-from sdr_to_midi import SDRModulator
+from src.monitor import WS2000Monitor
+from src.wind_smoother import WindSmoother
+from midi.sdr_to_midi import SDRModulator
 
 class Coordinator:
     def __init__(self):

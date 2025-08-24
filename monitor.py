@@ -2,7 +2,7 @@ import json
 import subprocess
 import time
 import os
-from wind_smoother import WindSmoother
+from src.wind_smoother import WindSmoother
 
 class WS2000Monitor:
     def __init__(self):
