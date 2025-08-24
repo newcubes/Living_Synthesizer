@@ -82,18 +82,19 @@ class IntensitySignalToSynth:
         print(f"    Humidity: {humidity}%")
         print(f"{'='*60}")
         
-        # Control LFO1 Speed only (wind speed → rate)
+        # Control LFO1 Speed only (wind speed → rate, upper half of CC range)
         if self.lfo_config['lfo1']['enabled']:
-            # Only send wind speed to LFO1 rate, ignore direction and temperature
-            lfo_rate = self.synth.map_wind_speed_to_lfo_rate(wind_speed)
+            # Map wind speed to upper half of CC range (64-127)
+            wind_normalized = min(wind_speed / self.synth.max_intensity, 1.0)
+            lfo_rate = int(64 + (wind_normalized * 63))  # 64-127 range
             self.synth.send_midi_cc(28, lfo_rate)  # LFO1 Speed CC 28 on Channel 2
             
-            print(f"🎛️  LFO1 Speed Control:")
-            print(f"    Wind: {wind_speed:.1f} MPH → LFO Rate: {lfo_rate}/127")
+            print(f"🎛️  LFO1 Speed Control (Upper Half):")
+            print(f"    Wind: {wind_speed:.1f} MPH → LFO Rate: {lfo_rate}/127 (Range: 64-127)")
         
         # Print summary of current LFO state
         print(f"\n🎵 LFO SUMMARY:")
-        print(f"    LFO1: Rate={self.synth.map_wind_speed_to_lfo_rate(wind_speed)}/127 | Fixed Depth: 32/63")
+        print(f"    LFO1: Rate={lfo_rate}/127 (Upper Half: 64-127) | Fixed Depth: 32/63")
         print(f"    LFO2: Disabled")
     
     def run(self):
