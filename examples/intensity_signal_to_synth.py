@@ -3,7 +3,7 @@
 Intensity Signal to Synth Integration
 
 Simplified version that only controls LFO1 Speed with wind speed.
-Wind speed range: 0-10 MPH → LFO rate: 0-127
+Wind speed range: 0-15 MPH → LFO rate: 0-127
 """
 
 import sys
@@ -89,11 +89,11 @@ class SmoothRampController:
 class IntensitySignalToSynth:
     """
     Simplified integration that only controls LFO1 Speed with wind speed.
-    Wind speed range: 0-10 MPH → LFO rate: 0-127
+    Wind speed range: 0-15 MPH → LFO rate: 0-127
     Includes 8-second smooth ramping between values.
     """
     
-    def __init__(self, smoothing_profile='balanced', midi_port='hw:1,0,0', max_intensity=10.0):
+    def __init__(self, smoothing_profile='balanced', midi_port='hw:1,0,0', max_intensity=15.0):
         # Initialize environmental monitor
         self.monitor = WS2000Monitor(smoothing_profile=smoothing_profile)
         
@@ -218,8 +218,8 @@ def main():
                        help='MIDI port for synthesizer')
     parser.add_argument('--test', action='store_true',
                        help='Run in test mode (no MIDI output)')
-    parser.add_argument('--max-intensity', type=float, default=10.0,
-                       help='Maximum wind speed for full LFO intensity (default: 10.0 MPH)')
+    parser.add_argument('--max-intensity', type=float, default=15.0,
+                       help='Maximum wind speed for full LFO intensity (default: 15.0 MPH)')
     
     args = parser.parse_args()
     
