@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Digitone MIDI Control Module
+Synthesizer MIDI Control Module
 
-Controls Elektron Digitone LFO parameters via MIDI CC messages.
-Maps wind speed to LFO rate for weather-controlled synthesis.
+Controls synthesizer LFO parameters via MIDI CC messages.
+Maps environmental signals to LFO rate for signal-driven synthesis.
 """
 
 import subprocess
 import time
 import math
 
-class DigitoneControl:
+class SynthControl:
     """
-    Controls Digitone LFO parameters via MIDI CC messages.
+    Controls synthesizer LFO parameters via MIDI CC messages.
     
     Maps environmental data to LFO controls:
     - Wind speed → LFO rate (CC 28/30)
@@ -20,11 +20,12 @@ class DigitoneControl:
     - Temperature → LFO depth (CC 29/31)
     """
     
-    def __init__(self, midi_port='hw:1,0,0', debug=True):
+    def __init__(self, midi_port='hw:1,0,0', debug=True, max_intensity=25.0):
         self.midi_port = midi_port
         self.debug = debug
+        self.max_intensity = max_intensity  # Maximum wind speed for full LFO intensity
         
-        # Digitone LFO CC mappings
+        # Synthesizer LFO CC mappings
         self.LFO_CC_MAPPINGS = {
             'lfo1': {
                 'speed': 28,      # LFO1 Speed MSB
@@ -65,10 +66,12 @@ class DigitoneControl:
         }
         
         # Wind speed to LFO rate mapping
-        self.wind_speed_range = (0, 25)  # MPH
+        self.wind_speed_range = (0, self.max_intensity)  # MPH
         self.lfo_rate_range = (0, 127)   # MIDI CC values
         
         print(f"DigitoneControl initialized on port: {midi_port}")
+        print(f"Max intensity: {self.max_intensity} MPH → Full LFO rate (127)")
+        print(f"Wind speed range: 0-{self.max_intensity} MPH → LFO rate: 0-127")
         
     def send_midi_cc(self, cc_number, value):
         """Send MIDI CC message to Digitone"""
@@ -79,15 +82,15 @@ class DigitoneControl:
         midi_message = f"B0 {cc_number:02x} {midi_value:02x}"
         
         if self.debug:
-            print(f"MIDI CC: {cc_number} = {midi_value} ({midi_message})")
+            print(f"📤 MIDI CC: {cc_number} = {midi_value}/127 ({midi_message})")
         
         try:
             subprocess.run(['amidi', '-p', self.midi_port, '-S', midi_message], 
                          check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
-            print(f"Failed to send MIDI CC {cc_number}: {e}")
+            print(f"❌ Failed to send MIDI CC {cc_number}: {e}")
         except FileNotFoundError:
-            print("Error: 'amidi' command not found. Install alsa-utils package.")
+            print("❌ Error: 'amidi' command not found. Install alsa-utils package.")
     
     def map_wind_speed_to_lfo_rate(self, wind_speed_mph):
         """Map wind speed (MPH) to LFO rate (0-127)"""
@@ -100,7 +103,8 @@ class DigitoneControl:
         lfo_rate = int(normalized * self.lfo_rate_range[1])
         
         if self.debug:
-            print(f"Wind: {wind_speed_mph:.1f} MPH → LFO Rate: {lfo_rate}")
+            print(f"🌪️  Wind: {wind_speed_mph:.1f} MPH → LFO Rate: {lfo_rate}/127")
+            print(f"    Clamped: {clamped_wind:.1f} MPH | Normalized: {normalized:.3f} | Range: 0-{self.max_intensity} MPH")
         
         return lfo_rate
     
@@ -130,7 +134,8 @@ class DigitoneControl:
         waveform = self.WAVEFORM_MAPPINGS[direction_name]
         
         if self.debug:
-            print(f"Wind Direction: {wind_direction_deg}° ({direction_name}) → Waveform: {waveform}")
+            print(f"🧭 Wind Direction: {wind_direction_deg}° ({direction_name}) → Waveform: {waveform}")
+            print(f"    Waveforms: 0=Triangle, 1=Sine, 2=Square, 3=Saw, 4=Exp, 5=Ramp, 6=Random")
         
         return waveform
     
@@ -145,7 +150,8 @@ class DigitoneControl:
         depth = int(normalized * depth_range[1])
         
         if self.debug:
-            print(f"Temperature: {temperature_c}°C → LFO Depth: {depth}")
+            print(f"🌡️  Temperature: {temperature_c}°C → LFO Depth: {depth}/63")
+            print(f"    Range: 0-40°C → 0-63 depth | Normalized: {normalized:.3f}")
         
         return depth
     
@@ -157,6 +163,9 @@ class DigitoneControl:
         
         lfo_key = f'lfo{lfo_number}'
         cc_mappings = self.LFO_CC_MAPPINGS[lfo_key]
+        
+        print(f"\n🎛️  LFO{lfo_number} Control:")
+        print(f"    CC Speed: {cc_mappings['speed']} | CC Waveform: {cc_mappings['waveform']} | CC Depth: {cc_mappings['depth']}")
         
         # Map wind speed to LFO rate
         lfo_rate = self.map_wind_speed_to_lfo_rate(wind_speed_mph)
@@ -213,21 +222,21 @@ class DigitoneControl:
 
 # Example usage
 if __name__ == "__main__":
-    # Create Digitone controller
-    digitone = DigitoneControl(debug=True)
+    # Create synthesizer controller
+    synth = SynthControl(debug=True)
     
     # Test wind speed mapping
     print("Testing wind speed to LFO rate mapping:")
     for wind_speed in [0, 5, 10, 15, 20, 25]:
-        rate = digitone.map_wind_speed_to_lfo_rate(wind_speed)
+        rate = synth.map_wind_speed_to_lfo_rate(wind_speed)
         print(f"  {wind_speed} MPH → LFO Rate: {rate}")
     
     # Test wind direction mapping
     print("\nTesting wind direction to waveform mapping:")
     for direction in [0, 45, 90, 135, 180, 225, 270, 315]:
-        waveform = digitone.map_wind_direction_to_waveform(direction)
+        waveform = synth.map_wind_direction_to_waveform(direction)
         print(f"  {direction}° → Waveform: {waveform}")
     
     # Test full LFO control
     print("\nTesting full LFO control:")
-    digitone.control_lfo(1, wind_speed_mph=12.5, wind_direction_deg=90, temperature_c=25)
+    synth.control_lfo(1, wind_speed_mph=12.5, wind_direction_deg=90, temperature_c=25)
