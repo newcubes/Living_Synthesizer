@@ -42,6 +42,7 @@ class WS2000Monitor:
                 rtl_433_path = os.path.join(project_root, 'rtl_433')
                 
                 cmd = [
+                    'sudo',
                     rtl_433_path,
                     '-f', '915M',
                     '-F', 'json:-'
