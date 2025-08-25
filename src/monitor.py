@@ -16,7 +16,9 @@ class WS2000Monitor:
         """Check if RTL-SDR device is available."""
         try:
             result = subprocess.run(['lsusb'], capture_output=True, text=True, timeout=5)
-            return 'realtek' in result.stdout.lower()
+            output = result.stdout.lower()
+            # Check for various ways the RTL-SDR might appear
+            return any(keyword in output for keyword in ['realtek', 'rtl2838', '0bda:2838'])
         except:
             return False
 
