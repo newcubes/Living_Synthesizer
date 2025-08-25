@@ -36,12 +36,14 @@ class WS2000Monitor:
                 print("RTL-SDR device found. Starting rtl_433...")
                 
                 # Start rtl_433 process continuously
+                # Find rtl_433 relative to the project root
+                import os
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                rtl_433_path = os.path.join(project_root, 'rtl_433')
+                
                 cmd = [
-                    './rtl_433',
+                    rtl_433_path,
                     '-f', '915M',
-                    '-M', 'level',
-                    '-M', 'report_meta',
-                    '-Y', 'autolevel',
                     '-F', 'json:-'
                 ]
                 
